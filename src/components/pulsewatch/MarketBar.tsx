@@ -66,7 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <Activity className="size-4" />
             </span>
-            <span className="font-display text-base font-semibold tracking-tight">MarketPulse</span>
+            <span className="font-display text-base font-semibold tracking-tight">PulseWatch</span>
           </Link>
           <span className="hidden text-xs text-muted-foreground sm:block">
             Your attention layer on the Indian market

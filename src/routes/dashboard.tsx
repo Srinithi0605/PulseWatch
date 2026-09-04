@@ -4,11 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, Inbox } from "lucide-react";
 
-import { AppShell, MarketBar } from "@/components/marketpulse/MarketBar";
-import { CatchMeUp } from "@/components/marketpulse/CatchMeUp";
-import { ChangeCard } from "@/components/marketpulse/ChangeCard";
-import { WatchlistTable } from "@/components/marketpulse/WatchlistTable";
-import { AddStockDialog } from "@/components/marketpulse/AddStockDialog";
+import { AppShell, MarketBar } from "@/components/pulsewatch/MarketBar";
+import { CatchMeUp } from "@/components/pulsewatch/CatchMeUp";
+import { ChangeCard } from "@/components/pulsewatch/ChangeCard";
+import { WatchlistTable } from "@/components/pulsewatch/WatchlistTable";
+import { AddStockDialog } from "@/components/pulsewatch/AddStockDialog";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,13 +22,13 @@ import {
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
     meta: [
-      { title: "Dashboard — MarketPulse" },
+      { title: "Dashboard — PulseWatch" },
       {
         name: "description",
         content:
           "Your watchlist ranked by attention: meaningful moves, unusual volume and change since your last check.",
       },
-      { property: "og:title", content: "Dashboard — MarketPulse" },
+      { property: "og:title", content: "Dashboard — PulseWatch" },
       {
         property: "og:description",
         content: "Your Indian stock watchlist, ranked by what actually deserves your attention.",

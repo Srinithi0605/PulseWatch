@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { AlertTriangle, ArrowLeft, CalendarClock } from "lucide-react";
 
-import { AppShell } from "@/components/marketpulse/MarketBar";
-import { PriceChart } from "@/components/marketpulse/PriceChart";
-import { AttentionBadge, Delta, Freshness, ScoreMeter } from "@/components/marketpulse/atoms";
+import { AppShell } from "@/components/pulsewatch/MarketBar";
+import { PriceChart } from "@/components/pulsewatch/PriceChart";
+import { AttentionBadge, Delta, Freshness, ScoreMeter } from "@/components/pulsewatch/atoms";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -21,12 +21,12 @@ export const Route = createFileRoute("/stocks/$symbol")({
     const symbol = params.symbol?.toUpperCase() ?? "Stock";
     return {
       meta: [
-        { title: `${symbol} — price, attention score and signals | MarketPulse` },
+        { title: `${symbol} — price, attention score and signals | PulseWatch` },
         {
           name: "description",
-          content: `${symbol} live demo quote, attention score, volume ratio, NIFTY-relative performance and price history on MarketPulse.`,
+          content: `${symbol} live demo quote, attention score, volume ratio, NIFTY-relative performance and price history on PulseWatch.`,
         },
-        { property: "og:title", content: `${symbol} on MarketPulse` },
+        { property: "og:title", content: `${symbol} on PulseWatch` },
         {
           property: "og:description",
           content: `Attention score, signals and price history for ${symbol}.`,

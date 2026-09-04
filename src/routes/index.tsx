@@ -4,13 +4,13 @@ import { Activity, Bell, Gauge, LineChart } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "MarketPulse — What changed in your Indian stocks?" },
+      { title: "PulseWatch — What changed in your Indian stocks?" },
       {
         name: "description",
         content:
-          "MarketPulse is an attention layer on the Indian market: it tells you what meaningfully changed in your watchlist since you last checked.",
+          "PulseWatch is an attention layer on the Indian market: it tells you what meaningfully changed in your watchlist since you last checked.",
       },
-      { property: "og:title", content: "MarketPulse — What changed in your Indian stocks?" },
+      { property: "og:title", content: "PulseWatch — What changed in your Indian stocks?" },
       {
         property: "og:description",
         content:
@@ -48,7 +48,7 @@ function Landing() {
             <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <Activity className="size-4" />
             </span>
-            <span className="font-display text-base font-semibold tracking-tight">MarketPulse</span>
+            <span className="font-display text-base font-semibold tracking-tight">PulseWatch</span>
           </div>
           <Link
             to="/auth"
@@ -68,7 +68,7 @@ function Landing() {
             What meaningfully changed since you last checked?
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground">
-            Not another watchlist. MarketPulse is a personalized attention layer over Indian stocks —
+            Not another watchlist. PulseWatch is a personalized attention layer over Indian stocks —
             it ranks your holdings by how much they actually deserve your time right now.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">

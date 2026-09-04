@@ -37,7 +37,7 @@ export function AddStockDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a stock to your watchlist</DialogTitle>
-          <DialogDescription>Search NSE symbols supported by MarketPulse.</DialogDescription>
+          <DialogDescription>Search NSE symbols supported by PulseWatch.</DialogDescription>
         </DialogHeader>
 
         <div className="relative">

@@ -156,7 +156,7 @@ export const addStock = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     if (!UNIVERSE_MAP[data.symbol] || UNIVERSE_MAP[data.symbol]?.isIndex) {
-      throw new Error(`${data.symbol} is not available in the MarketPulse universe`);
+      throw new Error(`${data.symbol} is not available in the PulseWatch universe`);
     }
     const watchlist = await loadWatchlist(supabase, userId);
     const { data: existing } = await supabase

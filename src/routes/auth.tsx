@@ -11,15 +11,15 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
-      { title: "Sign in — MarketPulse" },
+      { title: "Sign in — PulseWatch" },
       {
         name: "description",
-        content: "Sign in to MarketPulse to track meaningful changes in your Indian stock watchlist.",
+        content: "Sign in to PulseWatch to track meaningful changes in your Indian stock watchlist.",
       },
-      { property: "og:title", content: "Sign in — MarketPulse" },
+      { property: "og:title", content: "Sign in — PulseWatch" },
       {
         property: "og:description",
-        content: "Sign in to MarketPulse to track meaningful changes in your Indian stock watchlist.",
+        content: "Sign in to PulseWatch to track meaningful changes in your Indian stock watchlist.",
       },
     ],
   }),
@@ -72,7 +72,7 @@ function AuthPage() {
           <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
             <Activity className="size-4" />
           </span>
-          <span className="font-display text-base font-semibold tracking-tight">MarketPulse</span>
+          <span className="font-display text-base font-semibold tracking-tight">PulseWatch</span>
         </Link>
 
         <h1 className="mt-5 font-display text-xl font-semibold">
