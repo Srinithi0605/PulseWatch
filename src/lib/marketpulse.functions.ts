@@ -38,6 +38,7 @@ export interface DashboardPayload {
     niftyChangePct: number;
     interpretation: string;
   } | null;
+  displayName: string | null;
 }
 
 export interface ChangeHistoryItem {
@@ -121,7 +122,7 @@ export const getDashboard = createServerFn({ method: "GET" })
 
     const watchlist = await loadWatchlist(supabase, userId);
 
-    const [{ data: rows }, { data: snapRows }, { data: checkpointRow }, { data: historyRows }] =
+    const [{ data: rows }, { data: snapRows }, { data: checkpointRow }, { data: historyRows }, { data: profileRow }] =
       await Promise.all([
         supabase
           .from("watchlist_stocks")
@@ -145,6 +146,11 @@ export const getDashboard = createServerFn({ method: "GET" })
           .eq("user_id", userId)
           .order("captured_at", { ascending: false })
           .limit(8),
+        supabase
+          .from("profiles")
+          .select("display_name")
+          .eq("id", userId)
+          .maybeSingle(),
       ]);
 
     const symbols = (rows ?? []).map((r: { symbol: string }) => r.symbol);
@@ -306,6 +312,7 @@ export const getDashboard = createServerFn({ method: "GET" })
           .map((c) => c.quote.symbol),
       },
       watchlistPerformance,
+      displayName: profileRow?.display_name ?? null,
     };
   });
 

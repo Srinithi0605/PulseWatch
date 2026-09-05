@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Inbox, ChevronRight } from "lucide-react";
+import { AlertTriangle, Inbox, ChevronRight, Info } from "lucide-react";
 
 import { AppShell, MarketBar } from "@/components/pulsewatch/MarketBar";
 import { CatchMeUp } from "@/components/pulsewatch/CatchMeUp";
@@ -14,6 +14,15 @@ import { MarketBrief } from "@/components/pulsewatch/MarketBrief";
 import { TodaysPulse } from "@/components/pulsewatch/TodaysPulse";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import {
   addStock,
@@ -173,13 +182,18 @@ function DashboardPage() {
           source={data.dataSource}
         />
 
-        <TodaysPulse data={data} />
-
         <div>
           <div className="flex items-center justify-between">
-            <h1 className="font-display text-2xl font-semibold tracking-tight">
-              What changed since your last visit?
-            </h1>
+            <div>
+              <h1 className="font-display text-2xl font-semibold tracking-tight">
+                {data.displayName ? `Welcome back, ${data.displayName}!` : "Welcome back!"}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {data.lastCheckedAt
+                  ? `You were away for ${awayTime(data.lastCheckedAt)} · ${data.changes.length} of ${data.insights.length} stocks moved enough to matter.`
+                  : `${data.changes.length} of ${data.insights.length} stocks moved enough to matter.`}
+              </p>
+            </div>
             <Button
               variant="ghost"
               size="sm"
@@ -190,11 +204,56 @@ function DashboardPage() {
               <ChevronRight className="ml-1 size-4" />
             </Button>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {data.lastCheckedAt
-              ? `You were away for ${awayTime(data.lastCheckedAt)} · ${data.changes.length} of ${data.insights.length} stocks moved enough to matter.`
-              : `${data.changes.length} of ${data.insights.length} stocks moved enough to matter.`}
-          </p>
+        </div>
+
+        <TodaysPulse data={data} />
+
+        <div className="flex items-center justify-end">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="text-muted-foreground">
+                <Info className="mr-1 size-4" />
+                What do these metrics mean?
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Understanding Today's Pulse</DialogTitle>
+                <DialogDescription>
+                  Key metrics that help you understand your watchlist's performance relative to the market.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 text-sm">
+                <div>
+                  <h4 className="font-medium">Market</h4>
+                  <p className="mt-1 text-muted-foreground">
+                    The NIFTY 50 index's percentage change today. This represents the broader Indian market's movement.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium">Your watchlist</h4>
+                  <p className="mt-1 text-muted-foreground">
+                    The equal-weighted average percentage change of all stocks in your watchlist. This shows how your
+                    holdings are performing as a group.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium">Outperformance</h4>
+                  <p className="mt-1 text-muted-foreground">
+                    The difference between your watchlist's average change and NIFTY's change. Positive means your
+                    watchlist is beating the market; negative means it's lagging.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium">Outperforming</h4>
+                  <p className="mt-1 text-muted-foreground">
+                    The count of stocks in your watchlist that are performing better than NIFTY today, shown as a ratio
+                    of your total watchlist size.
+                  </p>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {actionError && (
@@ -212,10 +271,10 @@ function DashboardPage() {
             </div>
           ) : (
             <div className="rounded-xl border border-border bg-surface px-4 py-8 text-center">
-              <Inbox className="mx-auto size-5 text-muted-foreground" />
-              <p className="mt-2 text-sm font-medium">Nothing needs your attention right now</p>
+              <Inbox className="mx-auto size-8 text-muted-foreground" />
+              <p className="mt-3 text-sm font-medium">No meaningful changes yet</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Every stock in your watchlist is moving within its normal range.
+                PulseWatch will flag meaningful market changes here as they occur.
               </p>
             </div>
           )}

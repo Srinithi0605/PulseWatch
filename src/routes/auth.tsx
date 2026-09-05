@@ -32,6 +32,7 @@ function AuthPage() {
   const navigate = useNavigate();
   const { session, loading } = useAuth();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,12 @@ function AuthPage() {
         const { error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}/dashboard` },
+          options: {
+            data: {
+              full_name: name.trim() || null,
+            },
+            emailRedirectTo: `${window.location.origin}/dashboard`,
+          },
         });
         if (signUpError) throw signUpError;
         setNotice("Account created. If sign-in doesn't start automatically, confirm your email.");
@@ -92,6 +98,18 @@ function AuthPage() {
         </p>
 
         <form className="mt-5 space-y-3" onSubmit={submit}>
+          {mode === "signup" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Your name"
+              />
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="email">Email</Label>
             <Input
