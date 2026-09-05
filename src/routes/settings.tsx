@@ -51,7 +51,8 @@ function SettingsPage() {
       setMessage("Profile saved");
       queryClient.invalidateQueries({ queryKey: ["profile"] });
     },
-    onError: (err: unknown) => setMessage(err instanceof Error ? err.message : "Could not save profile"),
+    onError: (err: unknown) =>
+      setMessage(err instanceof Error ? err.message : "Could not save profile"),
   });
 
   async function signOut() {

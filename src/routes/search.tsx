@@ -86,7 +86,8 @@ function SearchPage() {
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">Search Markets</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Search any Indian NSE/BSE listed stock or company to view live quotes and track in your watchlist.
+            Search any Indian NSE/BSE listed stock or company to view live quotes and track in your
+            watchlist.
           </p>
         </div>
 
@@ -128,7 +129,8 @@ function SearchPage() {
           <div className="rounded-xl border border-border bg-surface p-8 text-center">
             <p className="font-display text-base font-medium">No results found</p>
             <p className="mt-1 text-sm text-muted-foreground">
-              No matching stocks found for “{debouncedTerm}”. Try searching by ticker symbol (e.g. TATAPOWER, WIPRO, RELIANCE) or company name.
+              No matching stocks found for “{debouncedTerm}”. Try searching by ticker symbol (e.g.
+              TATAPOWER, WIPRO, RELIANCE) or company name.
             </p>
           </div>
         ) : (
@@ -167,7 +169,9 @@ function SearchPage() {
                     <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">{stock.name}</p>
 
                     <div className="mt-3 flex items-baseline gap-2">
-                      <span className="font-display text-lg font-semibold">{fmtInr(stock.price)}</span>
+                      <span className="font-display text-lg font-semibold">
+                        {fmtInr(stock.price)}
+                      </span>
                       <Delta value={stock.changePct} />
                     </div>
                   </div>

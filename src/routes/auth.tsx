@@ -14,12 +14,14 @@ export const Route = createFileRoute("/auth")({
       { title: "Sign in — PulseWatch" },
       {
         name: "description",
-        content: "Sign in to PulseWatch to track meaningful changes in your Indian stock watchlist.",
+        content:
+          "Sign in to PulseWatch to track meaningful changes in your Indian stock watchlist.",
       },
       { property: "og:title", content: "Sign in — PulseWatch" },
       {
         property: "og:description",
-        content: "Sign in to PulseWatch to track meaningful changes in your Indian stock watchlist.",
+        content:
+          "Sign in to PulseWatch to track meaningful changes in your Indian stock watchlist.",
       },
     ],
   }),

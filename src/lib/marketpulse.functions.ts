@@ -3,7 +3,13 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildInsight, rankInsights } from "@/lib/market/engine";
-import { NIFTY, SENSEX, UNIVERSE_MAP, normalizeSymbol, searchUniverse } from "@/lib/market/universe";
+import {
+  NIFTY,
+  SENSEX,
+  UNIVERSE_MAP,
+  normalizeSymbol,
+  searchUniverse,
+} from "@/lib/market/universe";
 import type { IndexQuote, MarketStatus, Quote, Snapshot, StockInsight } from "@/lib/market/types";
 
 export interface DashboardPayload {
@@ -25,6 +31,13 @@ export interface DashboardPayload {
     marketMove: string;
     needsAttention: string[];
   };
+  watchlistPerformance: {
+    avgChangePct: number;
+    outperformingCount: number;
+    underperformingCount: number;
+    niftyChangePct: number;
+    interpretation: string;
+  } | null;
 }
 
 export interface ChangeHistoryItem {
@@ -70,9 +83,9 @@ async function loadWatchlist(supabase: any, userId: string) {
   if (createError) throw new Error(createError.message);
 
   const seed = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "ITC"];
-  await supabase.from("watchlist_stocks").insert(
-    seed.map((symbol) => ({ watchlist_id: created.id, user_id: userId, symbol })),
-  );
+  await supabase
+    .from("watchlist_stocks")
+    .insert(seed.map((symbol) => ({ watchlist_id: created.id, user_id: userId, symbol })));
   return created as { id: string; name: string };
 }
 
@@ -97,31 +110,36 @@ export const getDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DashboardPayload> => {
     const { supabase, userId } = context;
-    const { getMarketProvider, getMarketStatus, toIndexQuote } = await import(
-      "@/lib/market/provider.server"
-    );
+    const { getMarketProvider, getMarketStatus, toIndexQuote } =
+      await import("@/lib/market/provider.server");
 
     const watchlist = await loadWatchlist(supabase, userId);
 
-    const [{ data: rows }, { data: snapRows }, { data: checkpoint }, { data: historyRows }] = await Promise.all([
-      supabase
-        .from("watchlist_stocks")
-        .select("symbol, added_at")
-        .eq("watchlist_id", watchlist.id)
-        .order("added_at", { ascending: true }),
-      supabase.from("market_snapshots").select("symbol, price, volume, captured_at").eq("user_id", userId),
-      supabase
-        .from("checkpoints")
-        .select("last_checked_at, previous_checked_at")
-        .eq("user_id", userId)
-        .maybeSingle(),
-      supabase
-        .from("change_history")
-        .select("id, symbol, level, attention_score, price, change_pct, since_check_pct, relative_to_nifty, volume_ratio, headline, why, captured_at")
-        .eq("user_id", userId)
-        .order("captured_at", { ascending: false })
-        .limit(8),
-    ]);
+    const [{ data: rows }, { data: snapRows }, { data: checkpointRow }, { data: historyRows }] =
+      await Promise.all([
+        supabase
+          .from("watchlist_stocks")
+          .select("symbol, added_at")
+          .eq("watchlist_id", watchlist.id)
+          .order("added_at", { ascending: true }),
+        supabase
+          .from("market_snapshots")
+          .select("symbol, price, volume, captured_at")
+          .eq("user_id", userId),
+        supabase
+          .from("checkpoints")
+          .select("last_checked_at, previous_checked_at")
+          .eq("user_id", userId)
+          .maybeSingle(),
+        supabase
+          .from("change_history")
+          .select(
+            "id, symbol, level, attention_score, price, change_pct, since_check_pct, relative_to_nifty, volume_ratio, headline, why, captured_at",
+          )
+          .eq("user_id", userId)
+          .order("captured_at", { ascending: false })
+          .limit(8),
+      ]);
 
     const symbols = (rows ?? []).map((r: { symbol: string }) => r.symbol);
     const provider = getMarketProvider();
@@ -135,22 +153,116 @@ export const getDashboard = createServerFn({ method: "GET" })
     const snapshots = new Map<string, Snapshot>(
       (snapRows ?? []).map((s: any) => [
         s.symbol,
-        { symbol: s.symbol, price: Number(s.price), volume: Number(s.volume), capturedAt: s.captured_at },
+        {
+          symbol: s.symbol,
+          price: Number(s.price),
+          volume: Number(s.volume),
+          capturedAt: s.captured_at,
+        },
       ]),
     );
+
+    // ── Demo baseline seeding ─────────────────────────────────────────────────
+    // On a brand-new demo session (no checkpoint row, no snapshots) synthesise a
+    // baseline as if the user had last visited 4 h 32 m ago.  Offset prices are
+    // chosen so that buildInsight immediately surfaces SIGNIFICANT / NOTABLE
+    // "since last check" signals through the existing engine.  Live mode is
+    // completely unaffected — the guard checks provider.id === "demo".
+    let checkpoint = checkpointRow;
+    if (!checkpoint && provider.id === "demo" && symbols.length > 0) {
+      const DEMO_GAP_MS = (4 * 60 + 32) * 60 * 1_000; // 4 h 32 m in ms
+      const demoTime = new Date(Date.now() - DEMO_GAP_MS).toISOString();
+
+      // Seed price offsets: index 0 → −3.5%, index 1 → +2.2%, index 2 → −1.2%
+      // Negative offset  →  current price is higher  →  positive sinceCheckPct
+      // Positive offset  →  current price is lower   →  negative sinceCheckPct
+      const SEED_OFFSETS = [-0.035, 0.022, -0.012];
+
+      const demoSnaps = symbols
+        .map((symbol, idx) => {
+          const q = bySymbol.get(symbol);
+          if (!q) return null;
+          const factor = 1 + (SEED_OFFSETS[idx] ?? 0);
+          return {
+            user_id: userId,
+            symbol,
+            price: q.price * factor,
+            volume: q.volume,
+            captured_at: demoTime,
+          };
+        })
+        .filter((s): s is NonNullable<typeof s> => s !== null);
+
+      // Persist seeded snapshots and checkpoint concurrently; swallow errors so
+      // the dashboard still renders even if a write races or fails.
+      await Promise.all([
+        supabase.from("market_snapshots").upsert(demoSnaps, { onConflict: "user_id,symbol" }),
+        supabase
+          .from("checkpoints")
+          .upsert(
+            { user_id: userId, last_checked_at: demoTime, previous_checked_at: null },
+            { onConflict: "user_id" },
+          ),
+      ]);
+
+      // Rebuild snapshots Map so buildInsight sees the seeded baselines
+      for (const snap of demoSnaps) {
+        snapshots.set(snap.symbol, {
+          symbol: snap.symbol,
+          price: snap.price,
+          volume: snap.volume,
+          capturedAt: demoTime,
+        });
+      }
+
+      // Treat this request as a return visit
+      checkpoint = { last_checked_at: demoTime, previous_checked_at: null };
+    }
+    // ── End demo seeding ──────────────────────────────────────────────────────
 
     const insights = symbols
       .map((symbol) => bySymbol.get(symbol))
       .filter((q): q is Quote => Boolean(q))
-      .map((quote) => buildInsight({ quote, snapshot: snapshots.get(quote.symbol), niftyChangePct }));
+      .map((quote) =>
+        buildInsight({ quote, snapshot: snapshots.get(quote.symbol), niftyChangePct }),
+      );
 
     const ranked = rankInsights(insights);
-    const changes = ranked.filter((i) => i.level !== "NORMAL");
+    const changes = ranked.filter((i) => i.level !== "NORMAL" || i.signals.length > 0);
 
     const byAbsMove = [...insights].sort(
       (a, b) => Math.abs(b.quote.changePct) - Math.abs(a.quote.changePct),
     );
     const byBest = [...insights].sort((a, b) => b.quote.changePct - a.quote.changePct);
+
+    // Calculate watchlist performance (equal-weighted average)
+    let watchlistPerformance: DashboardPayload["watchlistPerformance"] = null;
+    if (insights.length > 0 && nifty) {
+      const avgChangePct =
+        insights.reduce((sum, i) => sum + i.quote.changePct, 0) / insights.length;
+      const outperformingCount = insights.filter((i) => i.quote.changePct > niftyChangePct).length;
+      const underperformingCount = insights.filter(
+        (i) => i.quote.changePct < niftyChangePct,
+      ).length;
+      const diff = avgChangePct - niftyChangePct;
+
+      let interpretation: string;
+      if (Math.abs(diff) < 0.3) {
+        interpretation = "Your watchlist is broadly moving with the market";
+      } else if (diff > 0) {
+        interpretation = `Your watchlist is outperforming NIFTY by ${diff.toFixed(2)}% today`;
+      } else {
+        interpretation = `Your watchlist is underperforming the market by ${Math.abs(diff).toFixed(2)}%`;
+      }
+
+      watchlistPerformance = {
+        avgChangePct,
+        outperformingCount,
+        underperformingCount,
+        niftyChangePct,
+        interpretation,
+      };
+    }
 
     return {
       watchlistId: watchlist.id,
@@ -187,6 +299,7 @@ export const getDashboard = createServerFn({ method: "GET" })
           .filter((c) => c.level === "SIGNIFICANT" || c.level === "CRITICAL")
           .map((c) => c.quote.symbol),
       },
+      watchlistPerformance,
     };
   });
 
@@ -196,7 +309,12 @@ export const addStock = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const cleanSymbol = normalizeSymbol(data.symbol);
-    if (cleanSymbol === NIFTY || cleanSymbol === SENSEX || cleanSymbol === "NIFTY" || cleanSymbol === "SENSEX") {
+    if (
+      cleanSymbol === NIFTY ||
+      cleanSymbol === SENSEX ||
+      cleanSymbol === "NIFTY" ||
+      cleanSymbol === "SENSEX"
+    ) {
       throw new Error("Market indices cannot be added to your stock watchlist");
     }
 
@@ -246,10 +364,7 @@ export const saveCheckpoint = createServerFn({ method: "POST" })
 
     const watchlist = await loadWatchlist(supabase, userId);
     const [{ data: rows }, { data: snapRows }] = await Promise.all([
-      supabase
-        .from("watchlist_stocks")
-        .select("symbol")
-        .eq("watchlist_id", watchlist.id),
+      supabase.from("watchlist_stocks").select("symbol").eq("watchlist_id", watchlist.id),
       supabase
         .from("market_snapshots")
         .select("symbol, price, volume, captured_at")
@@ -264,13 +379,20 @@ export const saveCheckpoint = createServerFn({ method: "POST" })
     const snapshots = new Map<string, Snapshot>(
       (snapRows ?? []).map((s: any) => [
         s.symbol,
-        { symbol: s.symbol, price: Number(s.price), volume: Number(s.volume), capturedAt: s.captured_at },
+        {
+          symbol: s.symbol,
+          price: Number(s.price),
+          volume: Number(s.volume),
+          capturedAt: s.captured_at,
+        },
       ]),
     );
     const insights = (rows ?? [])
       .map((r: { symbol: string }) => bySymbol.get(r.symbol))
       .filter((q: Quote | undefined): q is Quote => Boolean(q))
-      .map((quote: Quote) => buildInsight({ quote, snapshot: snapshots.get(quote.symbol), niftyChangePct }));
+      .map((quote: Quote) =>
+        buildInsight({ quote, snapshot: snapshots.get(quote.symbol), niftyChangePct }),
+      );
     const meaningful = insights.filter((i) => i.level !== "NORMAL" || i.signals.length > 0);
 
     if (meaningful.length) {
@@ -346,7 +468,13 @@ export const getProfile = createServerFn({ method: "GET" })
       .eq("id", userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (data) return data as { id: string; email: string | null; display_name: string | null; created_at: string };
+    if (data)
+      return data as {
+        id: string;
+        email: string | null;
+        display_name: string | null;
+        created_at: string;
+      };
 
     const email = typeof claims.email === "string" ? claims.email : null;
     const displayName = email?.split("@")[0] ?? "Investor";
@@ -356,7 +484,12 @@ export const getProfile = createServerFn({ method: "GET" })
       .select("id, email, display_name, created_at")
       .single();
     if (createError) throw new Error(createError.message);
-    return created as { id: string; email: string | null; display_name: string | null; created_at: string };
+    return created as {
+      id: string;
+      email: string | null;
+      display_name: string | null;
+      created_at: string;
+    };
   });
 
 export const updateProfile = createServerFn({ method: "POST" })
@@ -370,6 +503,31 @@ export const updateProfile = createServerFn({ method: "POST" })
       .from("profiles")
       .upsert({ id: userId, display_name: data.displayName }, { onConflict: "id" });
     if (error) throw new Error(error.message);
+    return { ok: true };
+  });
+
+/** Reset demo checkpoint and snapshots to restore the seeded 4h 32m baseline. Only works in demo mode and development environment. */
+export const resetDemoCheckpoint = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId } = context;
+    const { getMarketProvider } = await import("@/lib/market/provider.server");
+    const provider = getMarketProvider();
+
+    if (provider.id !== "demo") {
+      throw new Error("Demo reset is only available in demo mode");
+    }
+
+    if (process.env["NODE_ENV"] === "production") {
+      throw new Error("Demo reset is only available in development environment");
+    }
+
+    // Delete checkpoint and market snapshots to trigger re-seeding on next dashboard load
+    await Promise.all([
+      supabase.from("checkpoints").delete().eq("user_id", userId),
+      supabase.from("market_snapshots").delete().eq("user_id", userId),
+    ]);
+
     return { ok: true };
   });
 
@@ -391,42 +549,53 @@ export const getStockDetail = createServerFn({ method: "GET" })
   .validator((data: unknown) =>
     z
       .object({
-        symbol: z.string().trim().min(1).transform((s) => normalizeSymbol(s)),
+        symbol: z
+          .string()
+          .trim()
+          .min(1)
+          .transform((s) => normalizeSymbol(s)),
         range: z.enum(["1D", "1W", "1M", "1Y"]).default("1M"),
       })
       .parse(data),
   )
   .handler(async ({ data, context }): Promise<StockDetailPayload> => {
     const { supabase, userId } = context;
-    const { getMarketProvider, getMarketStatus, toIndexQuote } = await import(
-      "@/lib/market/provider.server"
-    );
+    const { getMarketProvider, getMarketStatus, toIndexQuote } =
+      await import("@/lib/market/provider.server");
     const provider = getMarketProvider();
-    const [quotes, history, { data: snapRow }, { data: watchRow }, { data: checkpoint }, { data: historyRows }] =
-      await Promise.all([
-        provider.getQuotes([data.symbol, NIFTY]),
-        provider.getHistory(data.symbol, data.range),
-        supabase
-          .from("market_snapshots")
-          .select("symbol, price, volume, captured_at")
-          .eq("user_id", userId)
-          .eq("symbol", data.symbol)
-          .maybeSingle(),
-        supabase
-          .from("watchlist_stocks")
-          .select("id")
-          .eq("user_id", userId)
-          .eq("symbol", data.symbol)
-          .maybeSingle(),
-        supabase.from("checkpoints").select("last_checked_at").eq("user_id", userId).maybeSingle(),
-        supabase
-          .from("change_history")
-          .select("id, symbol, level, attention_score, price, change_pct, since_check_pct, relative_to_nifty, volume_ratio, headline, why, captured_at")
-          .eq("user_id", userId)
-          .eq("symbol", data.symbol)
-          .order("captured_at", { ascending: false })
-          .limit(6),
-      ]);
+    const [
+      quotes,
+      history,
+      { data: snapRow },
+      { data: watchRow },
+      { data: checkpoint },
+      { data: historyRows },
+    ] = await Promise.all([
+      provider.getQuotes([data.symbol, NIFTY]),
+      provider.getHistory(data.symbol, data.range),
+      supabase
+        .from("market_snapshots")
+        .select("symbol, price, volume, captured_at")
+        .eq("user_id", userId)
+        .eq("symbol", data.symbol)
+        .maybeSingle(),
+      supabase
+        .from("watchlist_stocks")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("symbol", data.symbol)
+        .maybeSingle(),
+      supabase.from("checkpoints").select("last_checked_at").eq("user_id", userId).maybeSingle(),
+      supabase
+        .from("change_history")
+        .select(
+          "id, symbol, level, attention_score, price, change_pct, since_check_pct, relative_to_nifty, volume_ratio, headline, why, captured_at",
+        )
+        .eq("user_id", userId)
+        .eq("symbol", data.symbol)
+        .order("captured_at", { ascending: false })
+        .limit(6),
+    ]);
 
     const quote = quotes.find((q) => q.symbol === data.symbol);
     if (!quote) throw new Error(`No quote available for ${data.symbol}`);

@@ -16,7 +16,10 @@ export const Route = createFileRoute("/watchlist")({
   head: () => ({
     meta: [
       { title: "Watchlist — PulseWatch" },
-      { name: "description", content: "Manage the stocks PulseWatch monitors for meaningful changes." },
+      {
+        name: "description",
+        content: "Manage the stocks PulseWatch monitors for meaningful changes.",
+      },
     ],
   }),
   component: WatchlistPage,
@@ -73,7 +76,9 @@ function WatchlistPage() {
         <AppShell>
           <div className="rounded-xl border border-negative/40 bg-surface p-6 text-center">
             <AlertTriangle className="mx-auto size-5 text-negative" />
-            <h1 className="mt-3 font-display text-lg font-semibold">We couldn't load your watchlist</h1>
+            <h1 className="mt-3 font-display text-lg font-semibold">
+              We couldn't load your watchlist
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {error instanceof Error ? error.message : "Please try again."}
             </p>
@@ -127,7 +132,9 @@ function WatchlistPage() {
           <div className="rounded-xl border border-border bg-surface px-4 py-10 text-center">
             <Inbox className="mx-auto size-5 text-muted-foreground" />
             <p className="mt-2 text-sm font-medium">Your watchlist is empty</p>
-            <p className="mt-1 text-xs text-muted-foreground">Add a stock to start tracking changes.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Add a stock to start tracking changes.
+            </p>
           </div>
         )}
       </div>

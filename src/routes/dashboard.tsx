@@ -9,6 +9,8 @@ import { CatchMeUp } from "@/components/pulsewatch/CatchMeUp";
 import { ChangeCard } from "@/components/pulsewatch/ChangeCard";
 import { WatchlistTable } from "@/components/pulsewatch/WatchlistTable";
 import { AddStockDialog } from "@/components/pulsewatch/AddStockDialog";
+import { MarketVsWatchlist } from "@/components/pulsewatch/MarketVsWatchlist";
+import { MarketBrief } from "@/components/pulsewatch/MarketBrief";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
@@ -17,6 +19,7 @@ import {
   getDashboard,
   removeStock,
   saveCheckpoint,
+  resetDemoCheckpoint,
 } from "@/lib/marketpulse.functions";
 
 export const Route = createFileRoute("/dashboard")({
@@ -38,17 +41,28 @@ export const Route = createFileRoute("/dashboard")({
   component: DashboardPage,
 });
 
+/** Formats ms elapsed since `iso` as "4h 32m", "45m", "2h", etc. */
+function awayTime(iso: string): string {
+  const totalMins = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h === 0) return `${m}m`;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
+
 function DashboardPage() {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
   const [removing, setRemoving] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [briefOpen, setBriefOpen] = useState(false);
 
   const fetchDashboard = useServerFn(getDashboard);
   const addFn = useServerFn(addStock);
   const removeFn = useServerFn(removeStock);
   const checkpointFn = useServerFn(saveCheckpoint);
+  const resetDemoFn = useServerFn(resetDemoCheckpoint);
 
   useEffect(() => {
     if (!authLoading && !session) navigate({ to: "/auth" });
@@ -94,6 +108,16 @@ function DashboardPage() {
       setActionError(err instanceof Error ? err.message : "Could not save your checkpoint"),
   });
 
+  const resetDemoMutation = useMutation({
+    mutationFn: () => resetDemoFn(),
+    onSuccess: () => {
+      setActionError(null);
+      invalidate();
+    },
+    onError: (err: unknown) =>
+      setActionError(err instanceof Error ? err.message : "Could not reset demo"),
+  });
+
   if (authLoading || (!session && !data)) {
     return (
       <AppShell>
@@ -112,7 +136,9 @@ function DashboardPage() {
         <AppShell>
           <div className="rounded-xl border border-negative/40 bg-surface p-6 text-center">
             <AlertTriangle className="mx-auto size-5 text-negative" />
-            <h1 className="mt-3 font-display text-lg font-semibold">We couldn't load your watchlist</h1>
+            <h1 className="mt-3 font-display text-lg font-semibold">
+              We couldn't load your watchlist
+            </h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {error instanceof Error ? error.message : "Please try again."}
             </p>
@@ -151,8 +177,8 @@ function DashboardPage() {
             What changed since your last visit?
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {data.isFirstVisit
-              ? "First visit — we saved a baseline, so your next check will show the difference."
+            {data.lastCheckedAt
+              ? `You were away for ${awayTime(data.lastCheckedAt)} · ${data.changes.length} of ${data.insights.length} stocks moved enough to matter.`
               : `${data.changes.length} of ${data.insights.length} stocks moved enough to matter.`}
           </p>
         </div>
@@ -163,26 +189,45 @@ function DashboardPage() {
           </p>
         )}
 
-        {data.changes.length > 0 ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {data.changes.map((insight) => (
-              <ChangeCard key={insight.quote.symbol} insight={insight} />
-            ))}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-border bg-surface px-4 py-8 text-center">
-            <Inbox className="mx-auto size-5 text-muted-foreground" />
-            <p className="mt-2 text-sm font-medium">Nothing needs your attention right now</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Every stock in your watchlist is moving within its normal range.
-            </p>
-          </div>
-        )}
+        <div id="changes-section">
+          {data.changes.length > 0 ? (
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {data.changes.map((insight) => (
+                <ChangeCard key={insight.quote.symbol} insight={insight} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-xl border border-border bg-surface px-4 py-8 text-center">
+              <Inbox className="mx-auto size-5 text-muted-foreground" />
+              <p className="mt-2 text-sm font-medium">Nothing needs your attention right now</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Every stock in your watchlist is moving within its normal range.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <MarketVsWatchlist data={data} />
 
         <CatchMeUp
           data={data}
           saving={checkpointMutation.isPending}
           onCheckpoint={() => checkpointMutation.mutate()}
+          onResetDemo={() => resetDemoMutation.mutate()}
+          resetting={resetDemoMutation.isPending}
+          onOpenBrief={() => setBriefOpen(true)}
+        />
+
+        <MarketBrief
+          open={briefOpen}
+          onOpenChange={setBriefOpen}
+          data={data ?? null}
+          onReviewChanges={() => {
+            setBriefOpen(false);
+            document.getElementById("changes-section")?.scrollIntoView({ behavior: "smooth" });
+          }}
+          onMarkReviewed={() => checkpointMutation.mutate()}
+          markingReviewed={checkpointMutation.isPending}
         />
 
         <section className="space-y-3">

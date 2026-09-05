@@ -154,9 +154,7 @@ export function buildInsight({ quote, snapshot, niftyChangePct }: InsightInput):
         : "Price has broken down below its 20-day range.",
     );
   if (sinceCheckPct !== null && Math.abs(sinceCheckPct) >= 0.5)
-    whyParts.push(
-      `It has moved ${fmtPct(sinceCheckPct)} since you last checked.`,
-    );
+    whyParts.push(`It has moved ${fmtPct(sinceCheckPct)} since you last checked.`);
   if (!whyParts.length)
     whyParts.push("Movement, volume and relative performance are all inside normal ranges.");
 

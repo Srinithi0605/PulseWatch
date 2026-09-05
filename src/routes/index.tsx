@@ -61,10 +61,7 @@ function Landing() {
 
       <main className="mx-auto max-w-6xl px-4">
         <section className="py-20 text-center">
-          <span className="inline-flex items-center rounded-full border border-border px-3 py-1 text-[11px] uppercase tracking-widest text-muted-foreground">
-            Demo market data
-          </span>
-          <h1 className="mx-auto mt-5 max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-6xl">
+          <h1 className="mx-auto max-w-3xl font-display text-4xl font-semibold tracking-tight sm:text-6xl">
             What meaningfully changed since you last checked?
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-base text-muted-foreground">

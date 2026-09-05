@@ -1,4 +1,11 @@
-import { NIFTY, UNIVERSE_MAP, getSymbolMeta, normalizeSymbol, toYahooSymbol, type SymbolMeta } from "./universe";
+import {
+  NIFTY,
+  UNIVERSE_MAP,
+  getSymbolMeta,
+  normalizeSymbol,
+  toYahooSymbol,
+  type SymbolMeta,
+} from "./universe";
 import type { IndexQuote, MarketStatus, Quote } from "./types";
 
 /* ------------------------------------------------------------------ */
@@ -86,7 +93,9 @@ function buildQuote(meta: SymbolMeta, now: number): Quote {
   const dayHigh = Number((Math.max(price, prevClose) * (1 + rd() * 0.006)).toFixed(2));
   const dayLow = Number((Math.min(price, prevClose) * (1 - rd() * 0.006)).toFixed(2));
 
-  const volumeRatio = meta.isIndex ? 0 : Number((0.55 + rng(meta.symbol, "vol", day)() * 1.75).toFixed(2));
+  const volumeRatio = meta.isIndex
+    ? 0
+    : Number((0.55 + rng(meta.symbol, "vol", day)() * 1.75).toFixed(2));
   const volume = Math.round(meta.avgVolume * (volumeRatio || 0));
 
   const bandUp = 0.02 + rd() * 0.05;
@@ -139,7 +148,7 @@ function buildHistory(meta: SymbolMeta, range: HistoryRange, now: number): Histo
   return walk.map((w, i) => {
     const progress = i / Math.max(1, points - 1);
     const scaled = startAnchor * (w / walk[0]!);
-    const blended = scaled * (1 - progress) + (quote.price * (w / last)) * progress;
+    const blended = scaled * (1 - progress) + quote.price * (w / last) * progress;
     return {
       t: new Date(now - (points - 1 - i) * stepMs).toISOString(),
       price: Number(blended.toFixed(2)),
@@ -197,7 +206,9 @@ async function fetchLiveQuote(symbol: string, now: number): Promise<Quote | null
     const price = Number((m.regularMarketPrice ?? m.fulldayPrice ?? basePrice).toFixed(2));
     const prevClose = Number((m.chartPreviousClose ?? price).toFixed(2));
     const change = Number((price - prevClose).toFixed(2));
-    const changePct = Number((m.regularMarketChangePercent ?? m.fulldayChangePercent ?? 0).toFixed(2));
+    const changePct = Number(
+      (m.regularMarketChangePercent ?? m.fulldayChangePercent ?? 0).toFixed(2),
+    );
     const dayHigh = Number((m.regularMarketDayHigh ?? Math.max(price, prevClose)).toFixed(2));
     const dayLow = Number((m.regularMarketDayLow ?? Math.min(price, prevClose)).toFixed(2));
     const week52High = Number((m.fiftyTwoWeekHigh ?? price * 1.15).toFixed(2));
@@ -212,7 +223,12 @@ async function fetchLiveQuote(symbol: string, now: number): Promise<Quote | null
     return {
       symbol: clean,
       name: m.longName || m.shortName || meta.name || clean,
-      exchange: m.exchangeName === "NSI" || m.fullExchangeName === "NSE" ? "NSE" : m.exchangeName === "BSE" ? "BSE" : meta.exchange || "NSE",
+      exchange:
+        m.exchangeName === "NSI" || m.fullExchangeName === "NSE"
+          ? "NSE"
+          : m.exchangeName === "BSE"
+            ? "BSE"
+            : meta.exchange || "NSE",
       price,
       prevClose,
       change,
@@ -234,7 +250,11 @@ async function fetchLiveQuote(symbol: string, now: number): Promise<Quote | null
   }
 }
 
-async function fetchLiveHistory(symbol: string, range: HistoryRange, now: number): Promise<HistoryPoint[] | null> {
+async function fetchLiveHistory(
+  symbol: string,
+  range: HistoryRange,
+  now: number,
+): Promise<HistoryPoint[] | null> {
   try {
     const yTicker = toYahooSymbol(symbol);
     const paramsMap: Record<HistoryRange, { range: string; interval: string }> = {
@@ -291,7 +311,16 @@ export const yahooMarketProvider: MarketProvider = {
     const q = query.trim();
     if (!q) {
       // Default initial items if query is empty
-      const defaultSymbols = ["RELIANCE", "TCS", "INFY", "HDFCBANK", "ICICIBANK", "SBIN", "ITC", "TATAMOTORS"];
+      const defaultSymbols = [
+        "RELIANCE",
+        "TCS",
+        "INFY",
+        "HDFCBANK",
+        "ICICIBANK",
+        "SBIN",
+        "ITC",
+        "TATAMOTORS",
+      ];
       const quotes = await this.getQuotes(defaultSymbols, now);
       return quotes.map((quote) => ({
         symbol: quote.symbol,
@@ -315,13 +344,22 @@ export const yahooMarketProvider: MarketProvider = {
 
       // Filter equities, ETFs, and indices
       const filtered = rawQuotes.filter(
-        (item) => item.quoteType === "EQUITY" || item.quoteType === "ETF" || item.quoteType === "INDEX",
+        (item) =>
+          item.quoteType === "EQUITY" || item.quoteType === "ETF" || item.quoteType === "INDEX",
       );
 
       // Prioritize Indian NSE/BSE stocks (.NS / .BO)
       const sorted = filtered.sort((a, b) => {
-        const aIsIndian = a.symbol?.endsWith(".NS") || a.symbol?.endsWith(".BO") || a.exchange === "NSI" || a.exchange === "BSE";
-        const bIsIndian = b.symbol?.endsWith(".NS") || b.symbol?.endsWith(".BO") || b.exchange === "NSI" || b.exchange === "BSE";
+        const aIsIndian =
+          a.symbol?.endsWith(".NS") ||
+          a.symbol?.endsWith(".BO") ||
+          a.exchange === "NSI" ||
+          a.exchange === "BSE";
+        const bIsIndian =
+          b.symbol?.endsWith(".NS") ||
+          b.symbol?.endsWith(".BO") ||
+          b.exchange === "NSI" ||
+          b.exchange === "BSE";
         if (aIsIndian && !bIsIndian) return -1;
         if (!aIsIndian && bIsIndian) return 1;
         return 0;
@@ -395,7 +433,10 @@ export function getMarketProvider(): MarketProvider {
           if (!json.quotes?.length) throw new Error("custom provider returned no quotes");
           return json.quotes.map((q) => ({ ...q, source: "live" as const }));
         } catch (error) {
-          console.error("Custom market provider failed, falling back to live Yahoo provider", error);
+          console.error(
+            "Custom market provider failed, falling back to live Yahoo provider",
+            error,
+          );
           return yahooMarketProvider.getQuotes(symbols, now);
         }
       },
@@ -430,7 +471,13 @@ export function getMarketStatus(now = Date.now()): MarketStatus {
 }
 
 export function toIndexQuote(q: Quote): IndexQuote {
-  return { symbol: q.symbol, name: q.name, price: q.price, change: q.change, changePct: q.changePct };
+  return {
+    symbol: q.symbol,
+    name: q.name,
+    price: q.price,
+    change: q.change,
+    changePct: q.changePct,
+  };
 }
 
 export { NIFTY };

@@ -1,4 +1,12 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 export function PriceChart({
   data,
@@ -12,7 +20,8 @@ export function PriceChart({
   const stroke = positive ? "var(--color-positive)" : "var(--color-negative)";
   const format = (iso: string) => {
     const d = new Date(iso);
-    if (range === "1D") return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+    if (range === "1D")
+      return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
     if (range === "1Y") return d.toLocaleDateString("en-IN", { month: "short", year: "2-digit" });
     return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
   };

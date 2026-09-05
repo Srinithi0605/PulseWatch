@@ -18,7 +18,13 @@ const LEVEL_LABEL: Record<AttentionLevel, string> = {
   CRITICAL: "Critical",
 };
 
-export function AttentionBadge({ level, className }: { level: AttentionLevel; className?: string }) {
+export function AttentionBadge({
+  level,
+  className,
+}: {
+  level: AttentionLevel;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
@@ -61,7 +67,10 @@ export function ScoreMeter({ score }: { score: number }) {
   return (
     <div className="flex items-center gap-2">
       <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-        <div className={cn("h-full rounded-full transition-all", tone)} style={{ width: `${score}%` }} />
+        <div
+          className={cn("h-full rounded-full transition-all", tone)}
+          style={{ width: `${score}%` }}
+        />
       </div>
       <span className="tabular text-xs text-muted-foreground">{score}</span>
     </div>
