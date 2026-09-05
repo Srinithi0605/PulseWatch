@@ -69,7 +69,7 @@ function SettingsPage() {
 
   async function signOut() {
     await supabase.auth.signOut();
-    navigate({ to: "/auth" });
+    navigate({ to: "/" });
   }
 
   if (authLoading || isLoading || !data) {
