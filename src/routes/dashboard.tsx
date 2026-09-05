@@ -208,6 +208,15 @@ function DashboardPage() {
 
         <TodaysPulse data={data} />
 
+        <CatchMeUp
+          data={data}
+          saving={checkpointMutation.isPending}
+          onCheckpoint={() => checkpointMutation.mutate()}
+          onResetDemo={() => resetDemoMutation.mutate()}
+          resetting={resetDemoMutation.isPending}
+          onOpenBrief={() => setBriefOpen(true)}
+        />
+
         <div className="flex items-center justify-end">
           <Dialog>
             <DialogTrigger asChild>
@@ -256,6 +265,18 @@ function DashboardPage() {
           </Dialog>
         </div>
 
+        <MarketBrief
+          open={briefOpen}
+          onOpenChange={setBriefOpen}
+          data={data ?? null}
+          onReviewChanges={() => {
+            setBriefOpen(false);
+            document.getElementById("changes-section")?.scrollIntoView({ behavior: "smooth" });
+          }}
+          onMarkReviewed={() => checkpointMutation.mutate()}
+          markingReviewed={checkpointMutation.isPending}
+        />
+
         {actionError && (
           <p className="rounded-lg border border-negative/40 bg-surface px-3 py-2 text-sm text-negative">
             {actionError}
@@ -281,27 +302,6 @@ function DashboardPage() {
         </div>
 
         <MarketVsWatchlist data={data} />
-
-        <CatchMeUp
-          data={data}
-          saving={checkpointMutation.isPending}
-          onCheckpoint={() => checkpointMutation.mutate()}
-          onResetDemo={() => resetDemoMutation.mutate()}
-          resetting={resetDemoMutation.isPending}
-          onOpenBrief={() => setBriefOpen(true)}
-        />
-
-        <MarketBrief
-          open={briefOpen}
-          onOpenChange={setBriefOpen}
-          data={data ?? null}
-          onReviewChanges={() => {
-            setBriefOpen(false);
-            document.getElementById("changes-section")?.scrollIntoView({ behavior: "smooth" });
-          }}
-          onMarkReviewed={() => checkpointMutation.mutate()}
-          markingReviewed={checkpointMutation.isPending}
-        />
 
         <section className="space-y-3">
           <div className="flex items-center justify-between">
