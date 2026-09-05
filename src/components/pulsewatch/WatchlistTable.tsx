@@ -54,7 +54,7 @@ export function WatchlistTable({
 
             <div className="col-span-2 flex items-center gap-3 md:col-span-1">
               <AttentionBadge level={insight.level} />
-              <ScoreMeter score={insight.attentionScore} />
+              <ScoreMeter score={insight.attentionScore} insight={insight} />
             </div>
 
             <div className="col-span-2 flex items-center justify-between gap-2 md:col-span-1 md:justify-end">

@@ -237,7 +237,7 @@ function MarketBriefContent({
                       <p className="mt-2 text-xs text-muted-foreground">{item.insight.why}</p>
                     </div>
                   </div>
-                  <ScoreMeter score={item.insight.attentionScore} />
+                  <ScoreMeter score={item.insight.attentionScore} insight={item.insight} />
                 </div>
               </div>
             ))}

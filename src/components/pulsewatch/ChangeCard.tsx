@@ -40,7 +40,7 @@ export function ChangeCard({ insight }: { insight: StockInsight }) {
         <span className="tabular text-sm">{fmtInr(quote.price)}</span>
         <div className="flex items-center gap-2">
           <Gauge className="size-3.5 text-muted-foreground" />
-          <ScoreMeter score={insight.attentionScore} />
+          <ScoreMeter score={insight.attentionScore} insight={insight} />
         </div>
       </div>
     </Link>

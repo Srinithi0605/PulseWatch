@@ -148,7 +148,7 @@ function StockDetailPage() {
               <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
                 Attention score
               </p>
-              <ScoreMeter score={insight.attentionScore} />
+              <ScoreMeter score={insight.attentionScore} insight={insight} />
               <Freshness iso={data.fetchedAt} stale={!status.isOpen} />
               {nifty && (
                 <p className="tabular text-xs text-muted-foreground">

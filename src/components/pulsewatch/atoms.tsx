@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { fmtPct, timeAgo } from "@/lib/market/engine";
-import type { AttentionLevel } from "@/lib/market/types";
+import { getAttentionScoreBreakdown } from "@/lib/market/pulse";
+import type { AttentionLevel, StockInsight } from "@/lib/market/types";
 
 const LEVEL_STYLE: Record<AttentionLevel, string> = {
   NORMAL: "bg-neutral-soft text-muted-foreground border-border",
@@ -62,18 +64,65 @@ export function Delta({
   );
 }
 
-export function ScoreMeter({ score }: { score: number }) {
+export function ScoreMeter({ score, insight }: { score: number; insight?: StockInsight }) {
   const tone = score >= 70 ? "bg-critical" : score >= 40 ? "bg-notable" : "bg-primary";
-  return (
-    <div className="flex items-center gap-2">
-      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
-        <div
-          className={cn("h-full rounded-full transition-all", tone)}
-          style={{ width: `${score}%` }}
-        />
+  const breakdown = insight ? getAttentionScoreBreakdown(insight) : null;
+
+  if (!breakdown) {
+    return (
+      <div className="flex items-center gap-2">
+        <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn("h-full rounded-full transition-all", tone)}
+            style={{ width: `${score}%` }}
+          />
+        </div>
+        <span className="tabular text-xs text-muted-foreground">{score}</span>
       </div>
-      <span className="tabular text-xs text-muted-foreground">{score}</span>
-    </div>
+    );
+  }
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button className="flex items-center gap-2 hover:opacity-80 transition-opacity">
+          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+            <div
+              className={cn("h-full rounded-full transition-all", tone)}
+              style={{ width: `${score}%` }}
+            />
+          </div>
+          <span className="tabular text-xs text-muted-foreground">{score}</span>
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-64" side="top">
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium">Attention Score</span>
+            <span className="tabular text-sm font-bold">{breakdown.total}</span>
+          </div>
+          <div className="space-y-2">
+            {breakdown.components.map((component) => (
+              <div key={component.name} className="space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-muted-foreground">{component.name}</span>
+                  <span className="tabular text-muted-foreground">
+                    {component.points}/{component.max}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full bg-primary"
+                    style={{ width: `${(component.points / component.max) * 100}%` }}
+                  />
+                </div>
+                <p className="text-[10px] text-muted-foreground">{component.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 

@@ -11,6 +11,7 @@ import { WatchlistTable } from "@/components/pulsewatch/WatchlistTable";
 import { AddStockDialog } from "@/components/pulsewatch/AddStockDialog";
 import { MarketVsWatchlist } from "@/components/pulsewatch/MarketVsWatchlist";
 import { MarketBrief } from "@/components/pulsewatch/MarketBrief";
+import { TodaysPulse } from "@/components/pulsewatch/TodaysPulse";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/useAuth";
@@ -171,6 +172,8 @@ function DashboardPage() {
           fetchedAt={data.fetchedAt}
           source={data.dataSource}
         />
+
+        <TodaysPulse data={data} />
 
         <div>
           <h1 className="font-display text-2xl font-semibold tracking-tight">
