@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { Activity } from "lucide-react";
+import { Activity, ArrowLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -70,12 +70,19 @@ function AuthPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6">
-        <Link to="/" className="flex items-center gap-2">
-          <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <Activity className="size-4" />
-          </span>
-          <span className="font-display text-base font-semibold tracking-tight">PulseWatch</span>
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2">
+            <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
+              <Activity className="size-4" />
+            </span>
+            <span className="font-display text-base font-semibold tracking-tight">PulseWatch</span>
+          </Link>
+          <Button variant="ghost" size="icon" asChild>
+            <Link to="/">
+              <ArrowLeft className="size-4" />
+            </Link>
+          </Button>
+        </div>
 
         <h1 className="mt-5 font-display text-xl font-semibold">
           {mode === "signin" ? "Welcome back" : "Create your account"}
