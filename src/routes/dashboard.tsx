@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { AlertTriangle, Inbox } from "lucide-react";
+import { AlertTriangle, Inbox, ChevronRight } from "lucide-react";
 
 import { AppShell, MarketBar } from "@/components/pulsewatch/MarketBar";
 import { CatchMeUp } from "@/components/pulsewatch/CatchMeUp";
@@ -176,9 +176,20 @@ function DashboardPage() {
         <TodaysPulse data={data} />
 
         <div>
-          <h1 className="font-display text-2xl font-semibold tracking-tight">
-            What changed since your last visit?
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="font-display text-2xl font-semibold tracking-tight">
+              What changed since your last visit?
+            </h1>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate({ to: "/history" })}
+              className="text-primary"
+            >
+              View all changes
+              <ChevronRight className="ml-1 size-4" />
+            </Button>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             {data.lastCheckedAt
               ? `You were away for ${awayTime(data.lastCheckedAt)} · ${data.changes.length} of ${data.insights.length} stocks moved enough to matter.`

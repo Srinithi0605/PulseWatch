@@ -53,6 +53,11 @@ export interface ChangeHistoryItem {
   headline: string;
   why: string;
   capturedAt: string;
+  signals: Array<{ kind: string; label: string; detail: string; tone: string }>;
+}
+
+export interface ChangeHistoryPayload {
+  items: ChangeHistoryItem[];
 }
 
 const symbolSchema = z.object({
@@ -103,6 +108,7 @@ function toHistoryItem(row: any): ChangeHistoryItem {
     headline: row.headline,
     why: row.why,
     capturedAt: row.captured_at,
+    signals: Array.isArray(row.signals) ? row.signals : [],
   };
 }
 
@@ -529,6 +535,30 @@ export const resetDemoCheckpoint = createServerFn({ method: "POST" })
     ]);
 
     return { ok: true };
+  });
+
+/** Get user's change history for the Change History page. */
+export const getChangeHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<ChangeHistoryPayload> => {
+    const { supabase, userId } = context;
+
+    const { data: historyRows, error } = await supabase
+      .from("change_history")
+      .select(
+        "id, symbol, level, attention_score, price, change_pct, since_check_pct, relative_to_nifty, volume_ratio, headline, why, captured_at, signals",
+      )
+      .eq("user_id", userId)
+      .order("captured_at", { ascending: false })
+      .limit(100);
+
+    if (error) {
+      throw new Error(`Failed to fetch change history: ${error.message}`);
+    }
+
+    const items = (historyRows ?? []).map(toHistoryItem);
+
+    return { items };
   });
 
 export interface StockDetailPayload {
