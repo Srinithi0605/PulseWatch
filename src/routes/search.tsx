@@ -178,7 +178,7 @@ function SearchPage() {
 
                   <div className="mt-4 flex items-center justify-between border-t border-border/50 pt-3">
                     <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-                      {stock.source === "live" ? "Live Data" : "Demo Data"}
+                      {stock.source === "live" ? "Live" : "Delayed"}
                     </span>
                     <Button
                       size="sm"

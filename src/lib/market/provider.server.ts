@@ -310,7 +310,7 @@ export const yahooMarketProvider: MarketProvider = {
   async searchSymbols(query, now = Date.now()) {
     const q = query.trim();
     if (!q) {
-      // Default initial items if query is empty
+      // Default initial items if query is empty - only NSE/BSE stocks
       const defaultSymbols = [
         "RELIANCE",
         "TCS",
@@ -348,30 +348,22 @@ export const yahooMarketProvider: MarketProvider = {
           item.quoteType === "EQUITY" || item.quoteType === "ETF" || item.quoteType === "INDEX",
       );
 
-      // Prioritize Indian NSE/BSE stocks (.NS / .BO)
-      const sorted = filtered.sort((a, b) => {
-        const aIsIndian =
-          a.symbol?.endsWith(".NS") ||
-          a.symbol?.endsWith(".BO") ||
-          a.exchange === "NSI" ||
-          a.exchange === "BSE";
-        const bIsIndian =
-          b.symbol?.endsWith(".NS") ||
-          b.symbol?.endsWith(".BO") ||
-          b.exchange === "NSI" ||
-          b.exchange === "BSE";
-        if (aIsIndian && !bIsIndian) return -1;
-        if (!aIsIndian && bIsIndian) return 1;
-        return 0;
-      });
+      // Strictly filter to only NSE/BSE stocks (.NS / .BO or exchange NSE/BSE)
+      const indianStocks = filtered.filter(
+        (item) =>
+          item.symbol?.endsWith(".NS") ||
+          item.symbol?.endsWith(".BO") ||
+          item.exchange === "NSI" ||
+          item.exchange === "BSE",
+      );
 
-      const topMatches = sorted.slice(0, 10);
-      if (!topMatches.length) {
-        return demoMarketProvider.searchSymbols(q, now);
+      if (!indianStocks.length) {
+        return [];
       }
 
+      const topMatches = indianStocks.slice(0, 10);
+
       // Fetch live price quotes for resolved search matches
-      const resolvedSymbols = topMatches.map((item) => item.symbol as string);
       const quotes = await Promise.all(
         topMatches.map(async (item) => {
           const sym = item.symbol as string;
@@ -382,11 +374,12 @@ export const yahooMarketProvider: MarketProvider = {
             (sym.endsWith(".NS") ? "NSE" : sym.endsWith(".BO") ? "BSE" : item.exchange || "NSE");
           const name = item.longname || item.shortname || clean;
 
-          if (liveQuote) {
+          // Only return if we got live data for NSE/BSE
+          if (liveQuote && (liveQuote.exchange === "NSE" || liveQuote.exchange === "BSE")) {
             return {
               symbol: clean,
               name,
-              exchange: exch,
+              exchange: liveQuote.exchange,
               price: liveQuote.price,
               changePct: liveQuote.changePct,
               updatedAt: liveQuote.updatedAt,
@@ -394,23 +387,17 @@ export const yahooMarketProvider: MarketProvider = {
             };
           }
 
-          const fallback = buildQuote(getSymbolMeta(clean, name, exch), now);
-          return {
-            symbol: clean,
-            name,
-            exchange: exch,
-            price: fallback.price,
-            changePct: fallback.changePct,
-            updatedAt: fallback.updatedAt,
-            source: "demo" as const,
-          };
+          return null;
         }),
       );
 
-      return quotes;
+      // Filter out null results and only return valid NSE/BSE stocks
+      return quotes.filter((q): q is NonNullable<typeof q> => {
+        return q !== null && q.source === "live" && (q.exchange === "NSE" || q.exchange === "BSE");
+      }) as SearchResultItem[];
     } catch (error) {
-      console.error("Live symbol search failed, falling back to demo search", error);
-      return demoMarketProvider.searchSymbols(q, now);
+      console.error("Live symbol search failed", error);
+      return [];
     }
   },
 };
