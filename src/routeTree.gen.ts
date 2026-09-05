@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as SearchRouteImport } from './routes/search'
+import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as WatchlistRouteImport } from './routes/watchlist'
 import { Route as StocksSymbolRouteImport } from './routes/stocks/$symbol'
 
 const IndexRoute = IndexRouteImport.update({
@@ -29,6 +32,21 @@ const DashboardRoute = DashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WatchlistRoute = WatchlistRouteImport.update({
+  id: '/watchlist',
+  path: '/watchlist',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StocksSymbolRoute = StocksSymbolRouteImport.update({
   id: '/stocks/$symbol',
   path: '/stocks/$symbol',
@@ -39,12 +57,18 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/watchlist': typeof WatchlistRoute
   '/stocks/$symbol': typeof StocksSymbolRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/watchlist': typeof WatchlistRoute
   '/stocks/$symbol': typeof StocksSymbolRoute
 }
 export interface FileRoutesById {
@@ -52,20 +76,48 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/dashboard': typeof DashboardRoute
+  '/search': typeof SearchRoute
+  '/settings': typeof SettingsRoute
+  '/watchlist': typeof WatchlistRoute
   '/stocks/$symbol': typeof StocksSymbolRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/dashboard' | '/stocks/$symbol'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/search'
+    | '/settings'
+    | '/watchlist'
+    | '/stocks/$symbol'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/dashboard' | '/stocks/$symbol'
-  id: '__root__' | '/' | '/auth' | '/dashboard' | '/stocks/$symbol'
+  to:
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/search'
+    | '/settings'
+    | '/watchlist'
+    | '/stocks/$symbol'
+  id:
+    | '__root__'
+    | '/'
+    | '/auth'
+    | '/dashboard'
+    | '/search'
+    | '/settings'
+    | '/watchlist'
+    | '/stocks/$symbol'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthRoute: typeof AuthRoute
   DashboardRoute: typeof DashboardRoute
+  SearchRoute: typeof SearchRoute
+  SettingsRoute: typeof SettingsRoute
+  WatchlistRoute: typeof WatchlistRoute
   StocksSymbolRoute: typeof StocksSymbolRoute
 }
 
@@ -92,6 +144,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/watchlist': {
+      id: '/watchlist'
+      path: '/watchlist'
+      fullPath: '/watchlist'
+      preLoaderRoute: typeof WatchlistRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stocks/$symbol': {
       id: '/stocks/$symbol'
       path: '/stocks/$symbol'
@@ -106,6 +179,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthRoute: AuthRoute,
   DashboardRoute: DashboardRoute,
+  SearchRoute: SearchRoute,
+  SettingsRoute: SettingsRoute,
+  WatchlistRoute: WatchlistRoute,
   StocksSymbolRoute: StocksSymbolRoute,
 }
 export const routeTree = rootRouteImport

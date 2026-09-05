@@ -14,6 +14,63 @@ export type Database = {
   }
   public: {
     Tables: {
+      change_history: {
+        Row: {
+          attention_score: number
+          captured_at: string
+          change_pct: number
+          headline: string | null
+          id: string
+          level: string
+          price: number
+          relative_to_nifty: number | null
+          signals: any
+          since_check_pct: number | null
+          symbol: string
+          user_id: string
+          volume: number | null
+          volume_ratio: number | null
+          watchlist_id: string | null
+          why: string | null
+        }
+        Insert: {
+          attention_score: number
+          captured_at?: string
+          change_pct: number
+          headline?: string | null
+          id?: string
+          level: string
+          price: number
+          relative_to_nifty?: number | null
+          signals?: any
+          since_check_pct?: number | null
+          symbol: string
+          user_id: string
+          volume?: number | null
+          volume_ratio?: number | null
+          watchlist_id?: string | null
+          why?: string | null
+        }
+        Update: {
+          attention_score?: number
+          captured_at?: string
+          change_pct?: number
+          headline?: string | null
+          id?: string
+          level?: string
+          price?: number
+          relative_to_nifty?: number | null
+          signals?: any
+          since_check_pct?: number | null
+          symbol?: string
+          user_id?: string
+          volume?: number | null
+          volume_ratio?: number | null
+          watchlist_id?: string | null
+          why?: string | null
+        }
+        Relationships: []
+      }
       checkpoints: {
         Row: {
           last_checked_at: string

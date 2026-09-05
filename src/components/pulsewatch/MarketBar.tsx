@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Activity } from "lucide-react";
+import { Activity, LayoutDashboard, Search, Settings, Star } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { fmtPct } from "@/lib/market/engine";
@@ -58,19 +58,38 @@ export function MarketBar({
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const navItems = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/watchlist", label: "Watchlist", icon: Star },
+    { to: "/search", label: "Search", icon: Search },
+    { to: "/settings", label: "Settings", icon: Settings },
+  ] as const;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-30 border-b border-border bg-background/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
           <Link to="/dashboard" className="flex items-center gap-2">
             <span className="flex size-7 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <Activity className="size-4" />
             </span>
             <span className="font-display text-base font-semibold tracking-tight">PulseWatch</span>
           </Link>
-          <span className="hidden text-xs text-muted-foreground sm:block">
-            Your attention layer on the Indian market
-          </span>
+          <nav className="flex flex-wrap items-center gap-1">
+            {navItems.map((item) => (
+              <Link
+                key={item.to}
+                to={item.to}
+                activeProps={{
+                  className: "bg-surface-elevated text-foreground",
+                }}
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-surface-elevated hover:text-foreground"
+              >
+                <item.icon className="size-3.5" />
+                {item.label}
+              </Link>
+            ))}
+          </nav>
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>

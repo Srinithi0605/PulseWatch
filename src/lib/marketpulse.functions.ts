@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { buildInsight, rankInsights } from "@/lib/market/engine";
-import { NIFTY, SENSEX, UNIVERSE_MAP, searchUniverse } from "@/lib/market/universe";
+import { NIFTY, SENSEX, UNIVERSE_MAP, normalizeSymbol, searchUniverse } from "@/lib/market/universe";
 import type { IndexQuote, MarketStatus, Quote, Snapshot, StockInsight } from "@/lib/market/types";
 
 export interface DashboardPayload {
@@ -17,6 +17,7 @@ export interface DashboardPayload {
   isFirstVisit: boolean;
   dataSource: "demo" | "live";
   fetchedAt: string;
+  recentHistory: ChangeHistoryItem[];
   summary: {
     meaningfulChanges: number;
     biggestMover: { symbol: string; name: string; changePct: number } | null;
@@ -24,6 +25,21 @@ export interface DashboardPayload {
     marketMove: string;
     needsAttention: string[];
   };
+}
+
+export interface ChangeHistoryItem {
+  id: string;
+  symbol: string;
+  level: StockInsight["level"];
+  attentionScore: number;
+  price: number;
+  changePct: number;
+  sinceCheckPct: number | null;
+  relativeToNifty: number;
+  volumeRatio: number;
+  headline: string;
+  why: string;
+  capturedAt: string;
 }
 
 const symbolSchema = z.object({
@@ -60,6 +76,23 @@ async function loadWatchlist(supabase: any, userId: string) {
   return created as { id: string; name: string };
 }
 
+function toHistoryItem(row: any): ChangeHistoryItem {
+  return {
+    id: row.id,
+    symbol: row.symbol,
+    level: row.level,
+    attentionScore: Number(row.attention_score),
+    price: Number(row.price),
+    changePct: Number(row.change_pct),
+    sinceCheckPct: row.since_check_pct === null ? null : Number(row.since_check_pct),
+    relativeToNifty: Number(row.relative_to_nifty),
+    volumeRatio: Number(row.volume_ratio),
+    headline: row.headline,
+    why: row.why,
+    capturedAt: row.captured_at,
+  };
+}
+
 export const getDashboard = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DashboardPayload> => {
@@ -70,7 +103,7 @@ export const getDashboard = createServerFn({ method: "GET" })
 
     const watchlist = await loadWatchlist(supabase, userId);
 
-    const [{ data: rows }, { data: snapRows }, { data: checkpoint }] = await Promise.all([
+    const [{ data: rows }, { data: snapRows }, { data: checkpoint }, { data: historyRows }] = await Promise.all([
       supabase
         .from("watchlist_stocks")
         .select("symbol, added_at")
@@ -82,6 +115,12 @@ export const getDashboard = createServerFn({ method: "GET" })
         .select("last_checked_at, previous_checked_at")
         .eq("user_id", userId)
         .maybeSingle(),
+      supabase
+        .from("change_history")
+        .select("id, symbol, level, attention_score, price, change_pct, since_check_pct, relative_to_nifty, volume_ratio, headline, why, captured_at")
+        .eq("user_id", userId)
+        .order("captured_at", { ascending: false })
+        .limit(8),
     ]);
 
     const symbols = (rows ?? []).map((r: { symbol: string }) => r.symbol);
@@ -124,6 +163,7 @@ export const getDashboard = createServerFn({ method: "GET" })
       isFirstVisit: !checkpoint,
       dataSource: provider.id,
       fetchedAt: new Date().toISOString(),
+      recentHistory: (historyRows ?? []).map(toHistoryItem),
       summary: {
         meaningfulChanges: changes.length,
         biggestMover: byAbsMove[0]
@@ -152,31 +192,40 @@ export const getDashboard = createServerFn({ method: "GET" })
 
 export const addStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => symbolSchema.parse(data))
+  .validator((data: unknown) => symbolSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    if (!UNIVERSE_MAP[data.symbol] || UNIVERSE_MAP[data.symbol]?.isIndex) {
-      throw new Error(`${data.symbol} is not available in the PulseWatch universe`);
+    const cleanSymbol = normalizeSymbol(data.symbol);
+    if (cleanSymbol === NIFTY || cleanSymbol === SENSEX || cleanSymbol === "NIFTY" || cleanSymbol === "SENSEX") {
+      throw new Error("Market indices cannot be added to your stock watchlist");
     }
+
     const watchlist = await loadWatchlist(supabase, userId);
     const { data: existing } = await supabase
       .from("watchlist_stocks")
       .select("id")
       .eq("watchlist_id", watchlist.id)
-      .eq("symbol", data.symbol)
+      .eq("symbol", cleanSymbol)
       .maybeSingle();
-    if (existing) throw new Error(`${data.symbol} is already in your watchlist`);
+    if (existing) throw new Error(`${cleanSymbol} is already in your watchlist`);
+
+    const { getMarketProvider } = await import("@/lib/market/provider.server");
+    const provider = getMarketProvider();
+    const quotes = await provider.getQuotes([cleanSymbol]);
+    if (!quotes.length || !quotes[0]) {
+      throw new Error(`Could not resolve market data for ${cleanSymbol}`);
+    }
 
     const { error } = await supabase
       .from("watchlist_stocks")
-      .insert({ watchlist_id: watchlist.id, user_id: userId, symbol: data.symbol });
+      .insert({ watchlist_id: watchlist.id, user_id: userId, symbol: cleanSymbol });
     if (error) throw new Error(error.message);
-    return { ok: true, symbol: data.symbol };
+    return { ok: true, symbol: cleanSymbol };
   });
 
 export const removeStock = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) => symbolSchema.parse(data))
+  .validator((data: unknown) => symbolSchema.parse(data))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { error } = await supabase
@@ -196,14 +245,56 @@ export const saveCheckpoint = createServerFn({ method: "POST" })
     const { getMarketProvider } = await import("@/lib/market/provider.server");
 
     const watchlist = await loadWatchlist(supabase, userId);
-    const { data: rows } = await supabase
-      .from("watchlist_stocks")
-      .select("symbol")
-      .eq("watchlist_id", watchlist.id);
+    const [{ data: rows }, { data: snapRows }] = await Promise.all([
+      supabase
+        .from("watchlist_stocks")
+        .select("symbol")
+        .eq("watchlist_id", watchlist.id),
+      supabase
+        .from("market_snapshots")
+        .select("symbol, price, volume, captured_at")
+        .eq("user_id", userId),
+    ]);
     const symbols = [...(rows ?? []).map((r: { symbol: string }) => r.symbol), NIFTY, SENSEX];
 
     const quotes = await getMarketProvider().getQuotes(symbols);
     const now = new Date().toISOString();
+    const bySymbol = new Map<string, Quote>(quotes.map((q) => [q.symbol, q]));
+    const niftyChangePct = bySymbol.get(NIFTY)?.changePct ?? 0;
+    const snapshots = new Map<string, Snapshot>(
+      (snapRows ?? []).map((s: any) => [
+        s.symbol,
+        { symbol: s.symbol, price: Number(s.price), volume: Number(s.volume), capturedAt: s.captured_at },
+      ]),
+    );
+    const insights = (rows ?? [])
+      .map((r: { symbol: string }) => bySymbol.get(r.symbol))
+      .filter((q: Quote | undefined): q is Quote => Boolean(q))
+      .map((quote: Quote) => buildInsight({ quote, snapshot: snapshots.get(quote.symbol), niftyChangePct }));
+    const meaningful = insights.filter((i) => i.level !== "NORMAL" || i.signals.length > 0);
+
+    if (meaningful.length) {
+      const { error: historyError } = await supabase.from("change_history").insert(
+        meaningful.map((insight) => ({
+          user_id: userId,
+          watchlist_id: watchlist.id,
+          symbol: insight.quote.symbol,
+          level: insight.level,
+          attention_score: insight.attentionScore,
+          price: insight.quote.price,
+          change_pct: insight.quote.changePct,
+          since_check_pct: insight.sinceCheckPct,
+          relative_to_nifty: insight.relativeToNifty,
+          volume: insight.quote.volume,
+          volume_ratio: insight.quote.volumeRatio,
+          headline: insight.headline,
+          why: insight.why,
+          signals: insight.signals,
+          captured_at: now,
+        })),
+      );
+      if (historyError) throw new Error(historyError.message);
+    }
 
     if (quotes.length) {
       const { error } = await supabase.from("market_snapshots").upsert(
@@ -234,12 +325,53 @@ export const saveCheckpoint = createServerFn({ method: "POST" })
       { onConflict: "user_id" },
     );
     if (cpError) throw new Error(cpError.message);
-    return { ok: true, checkpointAt: now };
+    return { ok: true, checkpointAt: now, recordedChanges: meaningful.length };
   });
 
 export const searchStocks = createServerFn({ method: "GET" })
-  .inputValidator((data: unknown) => z.object({ q: z.string().max(40).default("") }).parse(data))
-  .handler(async ({ data }) => searchUniverse(data.q).slice(0, 12));
+  .validator((data: unknown) => z.object({ q: z.string().max(60).default("") }).parse(data))
+  .handler(async ({ data }) => {
+    const { getMarketProvider } = await import("@/lib/market/provider.server");
+    const provider = getMarketProvider();
+    return provider.searchSymbols(data.q);
+  });
+
+export const getProfile = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabase, userId, claims } = context;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, email, display_name, created_at")
+      .eq("id", userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (data) return data as { id: string; email: string | null; display_name: string | null; created_at: string };
+
+    const email = typeof claims.email === "string" ? claims.email : null;
+    const displayName = email?.split("@")[0] ?? "Investor";
+    const { data: created, error: createError } = await supabase
+      .from("profiles")
+      .insert({ id: userId, email, display_name: displayName })
+      .select("id, email, display_name, created_at")
+      .single();
+    if (createError) throw new Error(createError.message);
+    return created as { id: string; email: string | null; display_name: string | null; created_at: string };
+  });
+
+export const updateProfile = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: unknown) =>
+    z.object({ displayName: z.string().trim().min(1).max(80) }).parse(data),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({ id: userId, display_name: data.displayName }, { onConflict: "id" });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
 
 export interface StockDetailPayload {
   insight: StockInsight;
@@ -250,15 +382,16 @@ export interface StockDetailPayload {
   inWatchlist: boolean;
   lastCheckedAt: string | null;
   events: { at: string; title: string; detail: string }[];
+  historyEvents: ChangeHistoryItem[];
   fetchedAt: string;
 }
 
 export const getStockDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: unknown) =>
+  .validator((data: unknown) =>
     z
       .object({
-        symbol: z.string().trim().min(1).transform((s) => s.toUpperCase()),
+        symbol: z.string().trim().min(1).transform((s) => normalizeSymbol(s)),
         range: z.enum(["1D", "1W", "1M", "1Y"]).default("1M"),
       })
       .parse(data),
@@ -268,10 +401,8 @@ export const getStockDetail = createServerFn({ method: "GET" })
     const { getMarketProvider, getMarketStatus, toIndexQuote } = await import(
       "@/lib/market/provider.server"
     );
-    if (!UNIVERSE_MAP[data.symbol]) throw new Error(`Unknown symbol ${data.symbol}`);
-
     const provider = getMarketProvider();
-    const [quotes, history, { data: snapRow }, { data: watchRow }, { data: checkpoint }] =
+    const [quotes, history, { data: snapRow }, { data: watchRow }, { data: checkpoint }, { data: historyRows }] =
       await Promise.all([
         provider.getQuotes([data.symbol, NIFTY]),
         provider.getHistory(data.symbol, data.range),
@@ -288,6 +419,13 @@ export const getStockDetail = createServerFn({ method: "GET" })
           .eq("symbol", data.symbol)
           .maybeSingle(),
         supabase.from("checkpoints").select("last_checked_at").eq("user_id", userId).maybeSingle(),
+        supabase
+          .from("change_history")
+          .select("id, symbol, level, attention_score, price, change_pct, since_check_pct, relative_to_nifty, volume_ratio, headline, why, captured_at")
+          .eq("user_id", userId)
+          .eq("symbol", data.symbol)
+          .order("captured_at", { ascending: false })
+          .limit(6),
       ]);
 
     const quote = quotes.find((q) => q.symbol === data.symbol);
@@ -328,6 +466,7 @@ export const getStockDetail = createServerFn({ method: "GET" })
       inWatchlist: Boolean(watchRow),
       lastCheckedAt: checkpoint?.last_checked_at ?? null,
       events,
+      historyEvents: (historyRows ?? []).map(toHistoryItem),
       fetchedAt: new Date().toISOString(),
     };
   });

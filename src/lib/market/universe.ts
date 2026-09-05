@@ -32,8 +32,38 @@ export const TRADABLE = UNIVERSE.filter((s) => !s.isIndex);
 export const NIFTY = "NIFTY50";
 export const SENSEX = "SENSEX";
 
+export function normalizeSymbol(symbol: string): string {
+  const s = symbol.trim().toUpperCase();
+  if (s.endsWith(".NS")) return s.replace(/\.NS$/, "");
+  return s;
+}
+
+export function toYahooSymbol(symbol: string): string {
+  const upper = symbol.trim().toUpperCase();
+  if (upper === "NIFTY50" || upper === "NIFTY") return "^NSEI";
+  if (upper === "SENSEX") return "^BSESN";
+  if (upper.startsWith("^") || upper.includes(".")) return upper;
+  return `${upper}.NS`;
+}
+
+export function getSymbolMeta(symbol: string, name?: string, exchange?: string): SymbolMeta {
+  const clean = normalizeSymbol(symbol);
+  const known = UNIVERSE_MAP[clean] || UNIVERSE_MAP[symbol.toUpperCase()];
+  if (known) return known;
+
+  const isBse = symbol.toUpperCase().endsWith(".BO") || exchange?.toUpperCase() === "BSE";
+  return {
+    symbol: clean,
+    name: name || clean,
+    sector: "Equity",
+    exchange: exchange || (isBse ? "BSE" : "NSE"),
+    base: 100,
+    avgVolume: 1_000_000,
+  };
+}
+
 export function isKnownSymbol(symbol: string) {
-  return Boolean(UNIVERSE_MAP[symbol.toUpperCase()]);
+  return Boolean(UNIVERSE_MAP[normalizeSymbol(symbol)]);
 }
 
 export function searchUniverse(term: string) {
